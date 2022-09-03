@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS email_isspam (
   id integer references emails(id),
   is_spam boolean
 );
+CREATE TABLE IF NOT EXISTS temp_entities (
+  id integer references emails(id),
+  finished_ner_chunk text , 
+  entity_type text
+);
 
 create index idx_emails_from on emails("from");
 create index idx_emaillang_id on email_language(id);
