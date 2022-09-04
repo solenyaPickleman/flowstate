@@ -1,25 +1,27 @@
 '''
-pyspark --master local[6] --driver-memory 12g --jars /home/computron/jars/postgresql-42.4.0.jar --packages com.johnsnowlabs.nlp:spark-nlp_2.12:4.0.2
+spark-submit --master local[7] --driver-memory 32g --packages org.postgresql:postgresql:42.4.0,com.johnsnowlabs.nlp:spark-nlp-gpu_2.12:4.1.0 add_spamham.py 
 '''
 
-from pyspark.ml.pipeline import Pipeline, PipelineModel
-from pyspark.sql.functions import substring, col 
+import sparknlp
 
-pipeline = PipelineModel.load('/home/computron/models/enron_spam_ham/')
+from pyspark.sql import SQLContext 
+from pyspark.ml.pipeline import  PipelineModel
+from pyspark.sql.functions import col 
 
-#get data! 
+#setup spark / variables 
+spark = sparknlp.start(gpu=True) 
+sqlContext = SQLContext(spark.sparkContext)
+sql = sqlContext.sql #get data! 
 
-pgsql = sqlContext.read.jdbc(url='jdbc:postgresql://localhost:5432/computron', table='emails', properties={'driver':'org.postgresql.Driver', 'user': 'computron','password': 'password'})
-pgsql.createOrReplaceTempView('emails')
+pipeline = PipelineModel.load('/home/user/models/hamspam-enron/')
 
-df = sql('select id, body as text  from emails').repartition(200)
+print('\n\nMODEL LOADED INFERENCE STARTING\n\n')
+
+df = spark.read.format("jdbc").option("url", 'jdbc:postgresql://localhost:5432/emails').option('driver','org.postgresql.Driver').option("query", "select id, body as text from emails").option("user", "flow").option("password", "password").option('fetchsize', '1000').load().repartition(240)
 
 annotations = pipeline.transform(df).select('id', (col('category.result')[0] == 'spam' ).alias('is_spam')) 
+annotations.write.jdbc(url='jdbc:postgresql://localhost:5432/emails', table='is_spam', mode='overwrite', properties={'driver':'org.postgresql.Driver', 'user': 'flow','password': 'password'})
 
-annotations.write.jdbc(url='jdbc:postgresql://localhost:5432/computron', table='email_isspam', mode='overwrite', properties={'driver':'org.postgresql.Driver', 'user': 'computron','password': 'password'})
-
-# annotations.createOrReplaceTempView('spam')
-
-# sql('select  sum (cast ( is_spam as int) ) / count(*) as ratio  from spam ').show() 
-
+annotations.createOrReplaceTempView('spam')
+sql('select  sum (cast ( is_spam as int) ) / count(*) as ratio  from spam ').show() 
 

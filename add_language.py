@@ -1,23 +1,26 @@
 '''
-pyspark --master local[6] --driver-memory 12g --jars /home/computron/jars/postgresql-42.4.0.jar 
+spark-submit --master local[7] --driver-memory 32g --packages org.postgresql:postgresql:42.4.0 add_language.py
 '''
 
 import cld3 
 from pyspark.sql.functions import substring, col, udf 
+from pyspark.sql import SparkSession 
+
 from pyspark.sql.types import StringType
 
+spark = (
+    SparkSession
+    .builder
+    .appName("Add language with cld3")
+    .getOrCreate())
 
+spark.sparkContext.setLogLevel('WARN')
 
 detect_lang = udf ( lambda text : cld3.get_language(text).language , StringType() )
 
-pgsql = sqlContext.read.jdbc(url='jdbc:postgresql://localhost:5432/computron', table='emails', properties={'driver':'org.postgresql.Driver', 'user': 'computron','password': 'password'})
-pgsql.createOrReplaceTempView('emails')
-
-df = sql('select id, substring(body, 0 , 4098) as text  from emails').repartition(200)
-
+df = spark.read.format("jdbc").option("url", 'jdbc:postgresql://localhost:5432/emails').option('driver','org.postgresql.Driver').option("query", "select id, substring(body, 0 , 4098) as text from emails").option("user", "flow").option("password", "password").option('fetchsize', '1000').load().repartition(240)
 df = df.select('id', detect_lang('text').alias('language'))
-
-df.write.jdbc(url='jdbc:postgresql://localhost:5432/computron', table='email_language', mode='overwrite', properties={'driver':'org.postgresql.Driver', 'user': 'computron','password': 'password'})
+df.write.jdbc(url='jdbc:postgresql://localhost:5432/emails', table='language', mode='overwrite', properties={'driver':'org.postgresql.Driver', 'user': 'flow','password': 'password'})
 
 
 # df.createOrReplaceTempView('results')

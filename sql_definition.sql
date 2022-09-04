@@ -11,19 +11,21 @@ CREATE TABLE IF NOT EXISTS emails (
   "mime-version"  TEXT ,
   "x-filename" TEXT
 );
-CREATE TABLE IF NOT EXISTS email_language ( 
+CREATE TABLE IF NOT EXISTS language ( 
   id integer references emails(id),
   language text
 );
-CREATE TABLE IF NOT EXISTS email_isspam ( 
+CREATE TABLE IF NOT EXISTS is_spam ( 
   id integer references emails(id),
   is_spam boolean
 );
-CREATE TABLE IF NOT EXISTS temp_entities (
+CREATE TABLE IF NOT EXISTS entities (
   id integer references emails(id),
-  finished_ner_chunk text , 
-  entity_type text
+  LOC text[] ,
+  ORG text[] ,
+  PER text[] 
 );
+
 
 create index idx_emails_from on emails("from");
 create index idx_emaillang_id on email_language(id);
