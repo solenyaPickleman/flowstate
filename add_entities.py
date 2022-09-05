@@ -1,5 +1,5 @@
 '''
-spark-submit --master local[7] --driver-memory 32g --packages org.postgresql:postgresql:42.4.0,com.johnsnowlabs.nlp:spark-nlp-gpu_2.12:4.1.0 add_entites.py
+spark-submit --master local[7] --driver-memory 48g --packages org.postgresql:postgresql:42.4.0,com.johnsnowlabs.nlp:spark-nlp-gpu_2.12:4.1.0 add_entities.py
 '''
 
 import sparknlp
@@ -34,10 +34,4 @@ annotations.write.jdbc(url='jdbc:postgresql://localhost:5432/emails', table='tem
 df = spark.read.format("jdbc").option("url", 'jdbc:postgresql://localhost:5432/emails').option('driver','org.postgresql.Driver').option("query", "select id, finished_ner_chunk, entity_type from temp_entities").option("user", "flow").option("password", "password").option('fetchsize', '1000').load().repartition(12500, 'id' )
 
 df.groupby('id').pivot('entity_type').agg(collect_list('finished_ner_chunk')).write.jdbc(url='jdbc:postgresql://localhost:5432/emails', table='entities', mode='overwrite', properties={'driver':'org.postgresql.Driver', 'user': 'flow','password': 'password'})
-
-# # 
-
-# results = annotations.groupby('id').pivot('entity_type').select(collect_list('finished_ner_chunk'))
-
-# annotations.write.jdbc(url='jdbc:postgresql://localhost:5432/computron', table='email_entities', mode='overwrite', properties={'driver':'org.postgresql.Driver', 'user': 'computron','password': 'password'})
 
